@@ -1,0 +1,5 @@
+{
+  "name": "Futsal Balancer - Equilíbrio Dinâmico",
+  "description": "Gerador de times de futsal equilibrados utilizando inteligência artificial Gemini 3 Pro para análise de posições e distribuição justa.",
+  "requestFramePermissions": []
+}
