@@ -1,12 +1,26 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { PlayerInput, TeamResult } from '../types';
 
-const getClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key not found");
+// Helper to safely access environment variables in browser
+const getEnv = (key: string): string | undefined => {
+  // Check global process (if defined by bundler)
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key];
   }
-  return new GoogleGenAI({ apiKey });
+  // Check window.process (if defined by shim)
+  if (typeof window !== 'undefined' && (window as any).process && (window as any).process.env) {
+    return (window as any).process.env[key];
+  }
+  return undefined;
+};
+
+const getClient = () => {
+  const apiKey = getEnv('API_KEY');
+  
+  if (!apiKey) {
+    console.warn("API Key not found. Ensure 'API_KEY' is set in your environment variables.");
+  }
+  return new GoogleGenAI({ apiKey: apiKey || '' });
 };
 
 export const balanceTeams = async (players: PlayerInput[]): Promise<TeamResult> => {
@@ -34,14 +48,11 @@ export const balanceTeams = async (players: PlayerInput[]): Promise<TeamResult> 
   OUTPUT: Retorne APENAS o JSON no formato solicitado, sem explicações adicionais.
   `;
 
-  // Using Gemini 3 Pro Preview as requested for complex reasoning tasks
-  // Using a thinking budget to ensure the model reasons through the combinations
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
       contents: prompt,
       config: {
-        thinkingConfig: { thinkingBudget: 2048 },
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

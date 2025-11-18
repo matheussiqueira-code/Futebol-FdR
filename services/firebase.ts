@@ -2,27 +2,39 @@ import { initializeApp, FirebaseApp } from 'firebase/app';
 import { getDatabase, ref, onValue, push, remove, set, Database } from 'firebase/database';
 import { Player, PlayerInput } from '../types';
 
-// Configuração: Tenta ler do process.env. 
-// O usuário deve fornecer as chaves para o modo online funcionar.
+// Helper to safely access environment variables in browser
+const getEnv = (key: string): string | undefined => {
+  if (typeof process !== 'undefined' && process.env && process.env[key]) {
+    return process.env[key];
+  }
+  if (typeof window !== 'undefined' && (window as any).process && (window as any).process.env) {
+    return (window as any).process.env[key];
+  }
+  return undefined;
+};
+
 const getFirebaseConfig = () => {
-  // Suporta config via JSON string ou variáveis individuais (padrão create-react-app/vite)
-  if (process.env.FIREBASE_CONFIG) {
+  // 1. Try full JSON config string
+  const jsonConfig = getEnv('FIREBASE_CONFIG');
+  if (jsonConfig) {
     try {
-      return JSON.parse(process.env.FIREBASE_CONFIG);
+      return JSON.parse(jsonConfig);
     } catch (e) {
       console.error("Erro ao parsear FIREBASE_CONFIG JSON", e);
     }
   }
   
-  if (process.env.REACT_APP_FIREBASE_API_KEY) {
+  // 2. Try individual keys
+  const apiKey = getEnv('REACT_APP_FIREBASE_API_KEY');
+  if (apiKey) {
     return {
-      apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-      authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-      databaseURL: process.env.REACT_APP_FIREBASE_DATABASE_URL,
-      projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-      storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-      messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
-      appId: process.env.REACT_APP_FIREBASE_APP_ID
+      apiKey: apiKey,
+      authDomain: getEnv('REACT_APP_FIREBASE_AUTH_DOMAIN'),
+      databaseURL: getEnv('REACT_APP_FIREBASE_DATABASE_URL'),
+      projectId: getEnv('REACT_APP_FIREBASE_PROJECT_ID'),
+      storageBucket: getEnv('REACT_APP_FIREBASE_STORAGE_BUCKET'),
+      messagingSenderId: getEnv('REACT_APP_FIREBASE_MESSAGING_SENDER_ID'),
+      appId: getEnv('REACT_APP_FIREBASE_APP_ID')
     };
   }
 
@@ -31,10 +43,12 @@ const getFirebaseConfig = () => {
 
 let app: FirebaseApp | null = null;
 let db: Database | null = null;
-const ROOM_KEY = 'futsal_session_v1'; // Chave única para a lista
+const ROOM_KEY = 'futsal_session_v1';
 
 export const initFirebase = (): boolean => {
   const config = getFirebaseConfig();
+  
+  // If no config found, return false to stay in Offline Mode
   if (!config || !config.apiKey) return false;
   
   try {
